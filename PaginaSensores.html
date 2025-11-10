@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ESP32 Control Panel</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: #fff;
+            color: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            border: 1px solid #000;
+            padding: 30px;
+            max-width: 800px;
+            width: 100%;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 2em;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #444;
+            margin-bottom: 20px;
+            font-size: 1em;
+        }
+
+        .ip-config {
+            border: 2px solid #000;
+            padding: 15px;
+            margin-bottom: 25px;
+            background: #f9f9f9;
+        }
+
+        .ip-config h3 {
+            margin-bottom: 10px;
+        }
+
+        .ip-input-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .ip-input-group input {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid #000;
+            font-size: 1em;
+        }
+
+        .ip-input-group button {
+            padding: 8px 20px;
+            border: 1px solid #000;
+            background: #000;
+            color: #fff;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .ip-input-group button:hover {
+            background: #333;
+        }
+
+        .section {
+            margin-bottom: 25px;
+        }
+
+        .section-title {
+            font-size: 1.3em;
+            margin-bottom: 10px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #000;
+        }
+
+        .sensors-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .sensor-card {
+            border: 1px solid #000;
+            padding: 15px;
+            text-align: center;
+        }
+
+        .sensor-label {
+            font-size: 0.9em;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .sensor-value {
+            font-size: 1.8em;
+            font-weight: bold;
+        }
+
+        .sensor-unit {
+            font-size: 0.8em;
+            color: #666;
+        }
+
+        .led-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+        }
+
+        .led-button {
+            border: 1px solid #000;
+            padding: 20px;
+            font-size: 1em;
+            font-weight: bold;
+            background: #f5f5f5;
+            cursor: pointer;
+            transition: 0.2s ease;
+        }
+
+        .led-button:hover {
+            background: #e0e0e0;
+        }
+
+        .led-button.on {
+            background: #000;
+            color: #fff;
+        }
+
+        .status {
+            text-align: center;
+            padding: 10px;
+            border: 1px solid #000;
+            margin-top: 20px;
+            font-weight: bold;
+        }
+
+        .status.connected {
+            background: #d4edda;
+            color: #155724;
+            border-color: #155724;
+        }
+
+        .status.disconnected {
+            background: #f8d7da;
+            color: #721c24;
+            border-color: #721c24;
+        }
+
+        .last-update {
+            text-align: center;
+            color: #555;
+            font-size: 0.9em;
+            margin-top: 10px;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 15px;
+            }
+
+            h1 {
+                font-size: 1.5em;
+            }
+
+            .sensor-value {
+                font-size: 1.3em;
+            }
+
+            .ip-input-group {
+                flex-direction: column;
+            }
+
+            .ip-input-group button {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>ESP32 Control Panel</h1>
+        <p class="subtitle">Sistema de monitoreo y control en tiempo real</p>
+
+        <!-- Configuración de IP -->
+        <div class="ip-config">
+            <h3>Configuración del ESP32</h3>
+            <div class="ip-input-group">
+                <input type="text" id="esp32IP" placeholder="Ejemplo: 192.168.1.100" value="192.168.1.100">
+                <button onclick="connectToESP32()">Conectar</button>
+            </div>
+            <p style="margin-top: 10px; font-size: 0.9em; color: #666;">
+                Ingresa la dirección IP que aparece en el monitor serial del ESP32
+            </p>
+        </div>
+
+        <!-- Sensores -->
+        <div class="section">
+            <div class="section-title">Sensores</div>
+            <div class="sensors-grid">
+                <div class="sensor-card">
+                    <div class="sensor-label">Temperatura</div>
+                    <div class="sensor-value" id="temperature">--</div>
+                    <div class="sensor-unit">°C</div>
+                </div>
+                <div class="sensor-card">
+                    <div class="sensor-label">Humedad</div>
+                    <div class="sensor-value" id="humidity">--</div>
+                    <div class="sensor-unit">%</div>
+                </div>
+                <div class="sensor-card">
+                    <div class="sensor-label">Luz (LDR)</div>
+                    <div class="sensor-value" id="ldr">--</div>
+                    <div class="sensor-unit">/ 4095</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- LEDs y Buzzer -->
+        <div class="section">
+            <div class="section-title">Control</div>
+            <div class="led-grid">
+                <button class="led-button" id="led1" onclick="toggleLED(1)">
+                    LED 1<br><span style="font-size: 0.8em;">OFF</span>
+                </button>
+                <button class="led-button" id="led2" onclick="toggleLED(2)">
+                    LED 2<br><span style="font-size: 0.8em;">OFF</span>
+                </button>
+                <button class="led-button" id="led3" onclick="toggleLED(3)">
+                    LED 3<br><span style="font-size: 0.8em;">OFF</span>
+                </button>
+                <button class="led-button" id="led4" onclick="toggleLED(4)">
+                    BUZZER<br><span style="font-size: 0.8em;">OFF</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Estado -->
+        <div class="status disconnected" id="status">No conectado</div>
+        <div class="last-update" id="lastUpdate">Última actualización: Nunca</div>
+    </div>
+
+    <script>
+        let updateInterval;
+        let esp32BaseURL = '';
+
+        // Cargar IP guardada del localStorage
+        window.onload = function() {
+            const savedIP = localStorage.getItem('esp32IP');
+            if (savedIP) {
+                document.getElementById('esp32IP').value = savedIP;
+                esp32BaseURL = `http://${savedIP}`;
+                startUpdates();
+            }
+        };
+
+        function connectToESP32() {
+            const ip = document.getElementById('esp32IP').value.trim();
+            
+            if (!ip) {
+                alert('Por favor ingresa una dirección IP válida');
+                return;
+            }
+
+            // Guardar IP en localStorage
+            localStorage.setItem('esp32IP', ip);
+            esp32BaseURL = `http://${ip}`;
+            
+            // Detener actualizaciones anteriores
+            if (updateInterval) {
+                clearInterval(updateInterval);
+            }
+            
+            // Intentar conectar
+            document.getElementById('status').className = 'status disconnected';
+            document.getElementById('status').textContent = 'Conectando...';
+            
+            startUpdates();
+        }
+
+        function startUpdates() {
+            updateSensors();
+            updateInterval = setInterval(updateSensors, 1000);
+        }
+
+        function updateSensors() {
+            if (!esp32BaseURL) return;
+
+            fetch(`${esp32BaseURL}/sensors`)
+                .then(response => {
+                    if (!response.ok) throw new Error('Network error');
+                    return response.json();
+                })
+                .then(data => {
+                    document.getElementById('temperature').textContent = 
+                        data.valid ? data.temperature.toFixed(1) : '--';
+                    document.getElementById('humidity').textContent = 
+                        data.valid ? data.humidity.toFixed(1) : '--';
+                    document.getElementById('ldr').textContent = data.ldr;
+
+                    updateLEDButton(1, data.led1);
+                    updateLEDButton(2, data.led2);
+                    updateLEDButton(3, data.led3);
+                    updateLEDButton(4, data.led4);
+
+                    document.getElementById('status').className = 'status connected';
+                    document.getElementById('status').textContent = `Conectado a ${document.getElementById('esp32IP').value}`;
+                    
+                    const now = new Date();
+                    document.getElementById('lastUpdate').textContent = 
+                        `Última actualización: ${now.toLocaleTimeString()}`;
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    document.getElementById('status').className = 'status disconnected';
+                    document.getElementById('status').textContent = 'Error de conexión - Verifica la IP del ESP32';
+                });
+        }
+
+        function updateLEDButton(ledNum, state) {
+            const button = document.getElementById(`led${ledNum}`);
+            const label = ledNum === 4 ? 'BUZZER' : `LED ${ledNum}`;
+            
+            if (state) {
+                button.classList.add('on');
+                button.innerHTML = `${label}<br><span style="font-size: 0.8em;">ON</span>`;
+            } else {
+                button.classList.remove('on');
+                button.innerHTML = `${label}<br><span style="font-size: 0.8em;">OFF</span>`;
+            }
+        }
+
+        function toggleLED(ledNum) {
+            if (!esp32BaseURL) {
+                alert('Primero debes conectarte al ESP32');
+                return;
+            }
+
+            fetch(`${esp32BaseURL}/led`, {
+                method: 'POST',
+                body: `led=${ledNum}`
+            })
+            .then(response => {
+                if (response.ok) setTimeout(updateSensors, 100);
+            })
+            .catch(error => console.error('Error toggling LED:', error));
+        }
+    </script>
+</body>
+</html>
